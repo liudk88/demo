@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>分布式聊天室</title>
+    <meta charset="UTF-8">
+    <style>
+        #messageBox {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            overflow-y: auto;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        你的用户ID: <input type="text" id="userId" />
+        <button onclick="connect()">连接</button>
+    </div>
+    <div>
+        发送给用户: <input type="text" id="toUserId" />
+    </div>
+    <div id="messageBox"></div>
+    <input type="text" id="messageInput" placeholder="输入消息">
+    <button onclick="sendMessage()">发送</button>
+
+    <script>
+        let ws;
+        const messageBox = document.getElementById('messageBox');
+        const messageInput = document.getElementById('messageInput');
+        const userId = document.getElementById('userId');
+        const toUserId = document.getElementById('toUserId');
+
+        function connect() {
+            if (userId.value) {
+                ws = new WebSocket(`ws://${window.location.host}/chat/${userId.value}`);
+                
+                ws.onopen = function() {
+                    appendMessage('系统: 连接成功');
+                    startHeartbeat();
+                };
+
+                ws.onmessage = function(event) {
+                    appendMessage('收到: ' + event.data);
+                };
+
+                ws.onclose = function() {
+                    appendMessage('系统: 连接已关闭');
+                };
+
+                ws.onerror = function(error) {
+                    appendMessage('系统: 发生错误');
+                    console.error(error);
+                };
+            }
+        }
+
+        function sendMessage() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = {
+                    toUser: toUserId.value,
+                    content: messageInput.value,
+                    messageType: 'PRIVATE'
+                };
+                
+                ws.send(JSON.stringify(message));
+                appendMessage('发送: ' + messageInput.value);
+                messageInput.value = '';
+            }
+        }
+
+        function appendMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            messageBox.appendChild(messageElement);
+            messageBox.scrollTop = messageBox.scrollHeight;
+        }
+
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function startHeartbeat() {
+            setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send('PING');
+                }
+            }, 15000);
+        }
+    </script>
+</body>
+</html> 

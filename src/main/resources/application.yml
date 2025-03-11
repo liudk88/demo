@@ -1,0 +1,15 @@
+server:
+  port: 8080
+  id: server1  # 每个服务器实例需要配置不同的ID
+
+spring:
+  redis:
+    host: 192.168.56.100
+    port: 6379
+    password: Hcxa2019!
+  
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: admin
+    password: 123456

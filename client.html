@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket 客户端</title>
+    <meta charset="UTF-8">
+    <style>
+        #messageBox {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            overflow-y: auto;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="messageBox"></div>
+    <input type="text" id="messageInput" placeholder="输入消息">
+    <button onclick="sendMessage()">发送</button>
+
+    <script>
+        const messageBox = document.getElementById('messageBox');
+        const messageInput = document.getElementById('messageInput');
+        //使用前端用node.js实现了使用servier.js 模拟websocket
+        // const ws = new WebSocket('ws://localhost:8080');
+
+        //使用Spring Boot 模拟websocket
+        const ws = new WebSocket('ws://localhost:8080/websocket');
+
+        // 连接建立时的处理
+        ws.onopen = function() {
+            appendMessage('系统: WebSocket连接已建立');
+        };
+
+        // 接收消息的处理
+        ws.onmessage = function(event) {
+            appendMessage('服务器: ' + event.data);
+        };
+
+        // 连接关闭的处理
+        ws.onclose = function() {
+            appendMessage('系统: WebSocket连接已关闭');
+        };
+
+        // 发生错误时的处理
+        ws.onerror = function(error) {
+            appendMessage('系统: 发生错误');
+            console.error(error);
+        };
+
+        // 发送消息的函数
+        function sendMessage() {
+            const message = messageInput.value;
+            if (message) {
+                ws.send(message);
+                appendMessage('客户端: ' + message);
+                messageInput.value = '';
+            }
+        }
+
+        // 在消息框中添加新消息
+        function appendMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            messageBox.appendChild(messageElement);
+            messageBox.scrollTop = messageBox.scrollHeight;
+        }
+
+        // 添加回车键发送功能
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html> 
