@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>简单WebSocket客户端</title>
+    <meta charset="UTF-8">
+    <style>
+        .message-box {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="section">
+        <div class="title">简单版本 - 基础WebSocket测试</div>
+        <div id="messageBox" class="message-box"></div>
+        <div>
+            <input type="text" id="messageInput" placeholder="输入消息">
+            <button onclick="connect()">连接</button>
+            <button onclick="sendMessage()">发送</button>
+            <button onclick="disconnect()">断开</button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                appendMessage('系统: 已经连接了，请勿重复连接');
+                return;
+            }
+
+            // 使用Spring Boot的WebSocket端点
+            ws = new WebSocket('ws://localhost:8080/websocket');
+            
+            ws.onopen = function() {
+                appendMessage('系统: WebSocket连接已建立');
+            };
+
+            ws.onmessage = function(event) {
+                appendMessage('服务器: ' + event.data);
+            };
+
+            ws.onclose = function() {
+                appendMessage('系统: WebSocket连接已关闭');
+            };
+
+            ws.onerror = function(error) {
+                appendMessage('系统: 发生错误');
+                console.error(error);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                appendMessage('系统: 请先建立连接');
+                return;
+            }
+
+            const message = document.getElementById('messageInput').value;
+            if (message) {
+                ws.send(message);
+                appendMessage('客户端: ' + message);
+                document.getElementById('messageInput').value = '';
+            }
+        }
+
+        function appendMessage(message) {
+            const messageBox = document.getElementById('messageBox');
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            messageBox.appendChild(messageElement);
+            messageBox.scrollTop = messageBox.scrollHeight;
+        }
+
+        // 添加回车发送功能
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // 页面关闭时清理连接
+        window.onbeforeunload = function() {
+            if (ws) {
+                ws.close();
+            }
+        };
+    </script>
+</body>
+</html> 

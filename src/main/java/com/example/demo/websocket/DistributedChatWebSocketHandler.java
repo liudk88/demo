@@ -25,9 +25,9 @@ public class DistributedChatWebSocketHandler {
     private static ChatMessageService chatMessageService;
     private static WebSocketSessionService sessionService;
     private static ObjectMapper objectMapper;
-    
-    @Value("${server.id:server1}")
-    private static String serverId;
+  
+//    @Value("${server.id:server1}")
+    private static String serverId="server1";
 
     @Autowired
     public void setChatMessageService(ChatMessageService service) {

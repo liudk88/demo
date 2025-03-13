@@ -9,7 +9,8 @@ spring:
     password: Hcxa2019!
   
   rabbitmq:
-    host: rabbitmq
+    addresses: 192.168.56.100
     port: 5672
     username: admin
     password: 123456
+    virtualHost: my_vhost

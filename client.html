@@ -3,74 +3,295 @@
 <head>
     <title>WebSocket 客户端</title>
     <meta charset="UTF-8">
+    <link href="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.3/index.css" rel="stylesheet">
     <style>
-        #messageBox {
+        .message-box {
             width: 100%;
-            height: 300px;
+            height: 400px;
             margin-bottom: 10px;
             border: 1px solid #ccc;
             overflow-y: auto;
             padding: 10px;
+            background: #f5f5f5;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        /* 消息样式 */
+        .message {
+            margin: 10px 0;
+            clear: both;
+        }
+        .message-time {
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        .message-content {
+            max-width: 60%;
+            padding: 10px;
+            border-radius: 3px;
+            word-wrap: break-word;
+        }
+        .message.sent {
+            float: right;
+        }
+        .message.received {
+            float: left;
+        }
+        .message.sent .message-content {
+            background: #95ec69;
+            margin-right: 10px;
+        }
+        .message.received .message-content {
+            background: #fff;
+            margin-left: 10px;
+        }
+        .message-sender {
+            font-size: 12px;
+            color: #999;
+            margin: 0 12px 2px 12px;
+        }
+        .system-message {
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+            margin: 10px 0;
+            clear: both;
+        }
+        .input-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        #complexMessageInput {
+            flex: 1;
+        }
+        .emoji-button {
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+        emoji-picker {
+            position: absolute;
+            z-index: 1;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div id="messageBox"></div>
-    <input type="text" id="messageInput" placeholder="输入消息">
-    <button onclick="sendMessage()">发送</button>
+    <!-- 复杂版本实现 -->
+    <div class="section">
+        <div class="title">WebSocket聊天室</div>
+        <div id="complexMessageBox" class="message-box"></div>
+        <div>
+            用户ID: <input type="text" id="userId" placeholder="输入用户ID">
+            <button onclick="connectComplex()">连接</button>
+            <button onclick="disconnectComplex()">断开</button>
+        </div>
+        <div class="input-area">
+            发送给用户: <input type="text" id="toUser" placeholder="接收者ID">
+            消息内容: <input type="text" id="complexMessageInput" placeholder="输入消息">
+            <button class="emoji-button" onclick="toggleEmojiPicker()">😊</button>
+            <emoji-picker id="emojiPicker" style="display: none;"></emoji-picker>
+            <button onclick="sendComplexMessage()">发送</button>
+        </div>
+    </div>
 
-    <script>
-        const messageBox = document.getElementById('messageBox');
-        const messageInput = document.getElementById('messageInput');
-        //使用前端用node.js实现了使用servier.js 模拟websocket
-        // const ws = new WebSocket('ws://localhost:8080');
-
-        //使用Spring Boot 模拟websocket
-        const ws = new WebSocket('ws://localhost:8080/websocket');
-
-        // 连接建立时的处理
-        ws.onopen = function() {
-            appendMessage('系统: WebSocket连接已建立');
-        };
-
-        // 接收消息的处理
-        ws.onmessage = function(event) {
-            appendMessage('服务器: ' + event.data);
-        };
-
-        // 连接关闭的处理
-        ws.onclose = function() {
-            appendMessage('系统: WebSocket连接已关闭');
-        };
-
-        // 发生错误时的处理
-        ws.onerror = function(error) {
-            appendMessage('系统: 发生错误');
-            console.error(error);
-        };
-
-        // 发送消息的函数
-        function sendMessage() {
-            const message = messageInput.value;
-            if (message) {
-                ws.send(message);
-                appendMessage('客户端: ' + message);
-                messageInput.value = '';
-            }
+    <script type="module">
+        import 'https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.3/index.js';
+        window.toggleEmojiPicker = function() {
+            const picker = document.querySelector('emoji-picker');
+            picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
         }
 
-        // 在消息框中添加新消息
-        function appendMessage(message) {
-            const messageElement = document.createElement('div');
-            messageElement.textContent = message;
-            messageBox.appendChild(messageElement);
+        // 监听emoji选择事件
+        document.querySelector('emoji-picker').addEventListener('emoji-click', event => {
+            const messageInput = document.getElementById('complexMessageInput');
+            messageInput.value += event.detail.unicode;
+            messageInput.focus();
+        });
+    </script>
+
+    <script>
+        let complexWs = null;
+        let lastMessageTime = null;
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+
+        function shouldShowTime(timestamp) {
+            if (!lastMessageTime) return true;
+            // 如果与上一条消息相差5分钟以上，显示时间
+            return timestamp - lastMessageTime >= 5 * 60 * 1000;
+        }
+
+        function appendComplexMessage(message, type = 'system', sender = '', timestamp = Date.now()) {
+            const messageBox = document.getElementById('complexMessageBox');
+            
+            // 检查是否需要显示时间
+            if (shouldShowTime(timestamp)) {
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-time';
+                timeDiv.textContent = formatTime(timestamp);
+                messageBox.appendChild(timeDiv);
+                lastMessageTime = timestamp;
+            }
+
+            if (type === 'system') {
+                const systemDiv = document.createElement('div');
+                systemDiv.className = 'system-message';
+                systemDiv.textContent = message;
+                messageBox.appendChild(systemDiv);
+            } else {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+
+                const senderDiv = document.createElement('div');
+                senderDiv.className = 'message-sender';
+                senderDiv.textContent = sender;
+                messageDiv.appendChild(senderDiv);
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.textContent = message;
+                messageDiv.appendChild(contentDiv);
+
+                messageBox.appendChild(messageDiv);
+            }
+
             messageBox.scrollTop = messageBox.scrollHeight;
         }
 
-        // 添加回车键发送功能
-        messageInput.addEventListener('keypress', function(e) {
+        function connectComplex() {
+            const userId = document.getElementById('userId').value;
+            if (!userId) {
+                appendComplexMessage('请输入用户ID');
+                return;
+            }
+
+            if (complexWs && complexWs.readyState === WebSocket.OPEN) {
+                appendComplexMessage('已经连接了，请先断开当前连接');
+                return;
+            }
+
+            complexWs = new WebSocket(`ws://localhost:8080/chat/${userId}`);
+            
+            complexWs.onopen = function() {
+                appendComplexMessage('WebSocket连接已建立');
+                startHeartbeat();
+            };
+
+            complexWs.onmessage = function(event) {
+                if (event.data === 'PONG') {
+                    return;
+                }
+                // 尝试解析服务器消息
+                try {
+                    if (event.data.startsWith('来自')) {
+                        // 解析"来自 xxx 的消息: yyy"格式
+                        const match = event.data.match(/来自 (.*?) 的消息: (.*)/);
+                        if (match) {
+                            const [, fromUser, content] = match;
+                            appendComplexMessage(content, 'received', fromUser);
+                            return;
+                        }
+                    }
+                    // 如果不是特定格式，就当作系统消息处理
+                    appendComplexMessage(event.data);
+                } catch (e) {
+                    appendComplexMessage(event.data);
+                }
+            };
+
+            complexWs.onclose = function() {
+                appendComplexMessage('WebSocket连接已关闭');
+            };
+
+            complexWs.onerror = function(error) {
+                appendComplexMessage('发生错误');
+                console.error(error);
+            };
+        }
+
+        function disconnectComplex() {
+            if (complexWs) {
+                complexWs.close();
+                complexWs = null;
+            }
+        }
+
+        function sendComplexMessage() {
+            if (!complexWs || complexWs.readyState !== WebSocket.OPEN) {
+                appendComplexMessage('请先建立连接');
+                return;
+            }
+
+            const toUser = document.getElementById('toUser').value;
+            const content = document.getElementById('complexMessageInput').value;
+
+            if (!toUser || !content) {
+                appendComplexMessage('请输入接收者ID和消息内容');
+                return;
+            }
+
+            const messageObj = {
+                toUser: toUser,
+                content: content,
+                messageType: 'PRIVATE'
+            };
+
+            complexWs.send(JSON.stringify(messageObj));
+            appendComplexMessage(content, 'sent', '我');
+            document.getElementById('complexMessageInput').value = '';
+        }
+
+        // 心跳机制
+        let heartbeatInterval;
+        function startHeartbeat() {
+            heartbeatInterval = setInterval(() => {
+                if (complexWs && complexWs.readyState === WebSocket.OPEN) {
+                    complexWs.send('PING');
+                }
+            }, 25000);
+        }
+
+        // 页面关闭时清理连接
+        window.onbeforeunload = function() {
+            if (complexWs) {
+                complexWs.close();
+            }
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+            }
+        };
+
+        // 添加回车发送功能
+        document.getElementById('complexMessageInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                sendMessage();
+                sendComplexMessage();
+            }
+        });
+
+        // 点击页面其他地方时关闭emoji选择器
+        document.addEventListener('click', function(e) {
+            const picker = document.querySelector('emoji-picker');
+            const emojiButton = document.querySelector('.emoji-button');
+            if (!picker.contains(e.target) && e.target !== emojiButton) {
+                picker.style.display = 'none';
             }
         });
     </script>

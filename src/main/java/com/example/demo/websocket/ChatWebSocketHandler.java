@@ -2,10 +2,12 @@ package com.example.demo.websocket;
 
 import com.example.demo.entity.ChatMessage;
 import com.example.demo.service.ChatMessageService;
-import jakarta.websocket.*;
-import jakarta.websocket.server.ServerEndpoint;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import javax.websocket.*;
+import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
